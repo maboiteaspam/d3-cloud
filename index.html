@@ -125,7 +125,9 @@
         $('body').on('click', function(ev){
             if($(ev.target).is('text') ) {
                 var word = ev.target.innerHTML;
-                window.open('https://github.com/search?q=user%3A'+username+'+'+word)
+                var gUrl = 'https://github.com/search?';
+                gUrl += 'utf8=✓&q=user:'+username+'+'+word+'+fork:true&ref=d3-cloud';
+                window.open(gUrl)
             }
         });
     });

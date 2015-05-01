@@ -20,13 +20,15 @@
     }
     text{
         cursor: pointer;
-        transition: opacity .5s ease;
+        transition: opacity .5s ease, filter .5s ease;
     }
     svg:hover text{
-        opacity:.75;
+        transition-duration: .25s;
+        opacity:.65;
     }
     text:hover {
         opacity:1 !important;
+        filter: saturate(10);
     }
     .loader{
         color: ghostwhite;

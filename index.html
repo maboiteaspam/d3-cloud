@@ -15,8 +15,12 @@
         background-color: inherit;
         top: 50%;
         left: 50%;
-        margin-top: -400px;
-        margin-left: -600px;
+        opacity: 0;
+        transition: opacity 1s ease;
+        transition-delay: 2s;
+    }
+    svg.ready{
+        opacity: 1;
     }
     text{
         cursor: pointer;
@@ -58,10 +62,6 @@
 
 <script>
 
-    var username = window.location.hash.replace(/^#/,'') || 'maboiteaspam';
-    var ghUrl = 'https://api.github.com/users/%user%/repos'
-            .replace('%user%', username);
-
     Array.prototype.removeValue = function(val) {
         do{
             var position = this.indexOf(val);
@@ -79,60 +79,36 @@
         return found;
     };
 
-    $.get(ghUrl, function(repos){
-        var words = [];
-        repos.forEach(function(repo){
-            words = words
-                    .concat((''+repo.name).toLowerCase().replace(/[^a-z0-9\s]+/ig,' ').split(/[\s-]/))
-                    .concat((''+repo.description).toLowerCase().replace(/[^a-z0-9\s]+/ig,' ').split(/[\s-]/))
-                    .concat((''+repo.language).toLowerCase().replace(/[^a-z0-9\s]+/ig,' ').split(/[\s-]/));
-        });
-
-        [
-            '',
-            'a',
-            'of',
-            'so',
-            'in',
-            'see',
-            'to',
-            'your',
-            'or',
-            'and',
-            'via',
-            'the',
-            'do',
-            'i',
-            'with',
-            'for',
-            'an',
-            'is',
-            'it',
-            'for'
-        ].forEach(function(exclude){
-            words.removeValue(exclude);
-                });
-
-        var unqiWords = [];
-        var cloudWords = [];
-        words.forEach(function(word){
-            if(unqiWords.indexOf(word)==-1){
-                unqiWords.push(word)
-                cloudWords.push(
-                        { text:word, count: words.countValue(word) }
-                );
-            }
-        });
-        showCloud(cloudWords);
-        $('body').on('click', function(ev){
-            if($(ev.target).is('text') ) {
-                var word = ev.target.innerHTML;
-                var gUrl = 'https://github.com/search?';
-                gUrl += 'utf8=✓&q=user:'+username+'+'+word+'+fork:true&ref=d3-cloud';
-                window.open(gUrl)
-            }
-        });
-    });
+    var excludes = [
+        '','a','of',
+        'so','in',
+        'see','to',
+        'your','or',
+        'and','via',
+        'the','do',
+        'i','with',
+        'for','an',
+        'he','id',
+        'that','this',
+        'was','those',
+        'were','could',
+        'runs','run',
+        'first',
+        'very',
+        'github',
+        'side',
+        'things',
+        'together',
+        'installed',
+        'thing',
+        'around',
+        'find',
+        'is','it',
+        'only','without',
+        'self','own',
+        'like','full',
+        'from','way','create','provide','provides','new','current'
+    ];
 
     function getRandomInt(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -141,14 +117,18 @@
         return Math.random() * (max - min) + min;
     }
 
-    var showCloud = function(words){
+</script>
+<script>
+    function showCloud(words, width, height){
 
         var fill = d3.scale.category20();
 
-        d3.layout.cloud().size([1200, 800])
+        d3.layout.cloud().size([width, height])
                 .words(words.map(function(d) {
-                    var k = 1/(d.count+getRandomArbitrary(0,1));
-                    k = k*35 +10;
+                    var k = d.count*(1-getRandomArbitrary(0.01,0.99));
+                    k = k*10 +15;
+                    if(k>70)k=70;
+                    console.log(k)
                     return {text: d.text, size: k};
                 }))
                 .padding(5)
@@ -158,12 +138,15 @@
                 .on("end", draw)
                 .start();
 
+        $('svg').css('margin-left', '-'+width/2+'px')
+                .css('margin-top', '-'+height/2+'px');
+
         function draw(words) {
             d3.select("body").append("svg")
-                    .attr("width", 1200)
-                    .attr("height", 800)
+                    .attr("width", width)
+                    .attr("height", height)
                     .append("g")
-                    .attr("transform", "translate(600,400)")
+                    .attr("transform", "translate("+width/2+","+height/2+")")
                     .selectAll("text")
                     .data(words)
                     .enter().append("text")
@@ -175,7 +158,69 @@
                         return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
                     })
                     .text(function(d) { return d.text; });
+
+            setTimeout(function(){
+                $('svg').attr("class", "ready");
+            },1000)
         }
-    };
+    }
+</script>
+<script>
+
+    function splitTxt (txt){
+        return (''+txt).toLowerCase().replace(/[^a-z0-9\s]+/ig,' ').split(/[\s\/]/);
+    }
+    function repoToWords (repoProps, repo){
+        var words = [];
+        repoProps.forEach(function(p){
+            if(repo[p]){
+                var txt = (''+repo[p]);
+                words = words.concat(splitTxt(txt) );
+            }
+        });
+        return words;
+    }
+    var username = window.location.hash.replace(/^#/,'') || 'maboiteaspam';
+    excludes.push(username);
+
+    var reposUrl = 'https://api.github.com/users/%user%/repos'
+            .replace('%user%', username);
+
+    var starsUrl = 'https://api.github.com/users/%user%/starred'
+            .replace('%user%', username);
+
+    var df = $.when( $.get(reposUrl),  $.get(starsUrl) );
+    df.then(function( repos, stars ) {
+        var words = {};
+        var repoProps = ['full_name','description','language'];
+        var addRepoText = function(repo){
+            repoToWords(repoProps, repo).forEach(function(word){
+                if(word && word.length>1 && excludes.indexOf(word)==-1){
+                    if( !words[word] ){
+                        words[word] = {
+                            text:word,
+                            count:0
+                        };
+                    }
+                    words[word].count++;
+                }
+            });
+        };
+        repos[0].forEach(addRepoText);
+        stars[0].forEach(addRepoText);
+        var cloudWords = [];
+        Object.keys(words).forEach(function(word){
+            cloudWords.push(words[word]);
+        });
+        showCloud(cloudWords,1600,1200);
+    });
+    $('body').on('click', function(ev){
+        if($(ev.target).is('text') ) {
+            var word = ev.target.innerHTML;
+            var gUrl = 'https://github.com/search?';
+            gUrl += 'utf8=✓&q=user:'+username+'+'+word+'+fork:true&ref=d3-cloud';
+            window.open(gUrl)
+        }
+    });
 
 </script>

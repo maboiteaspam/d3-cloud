@@ -148,7 +148,7 @@
         d3.layout.cloud().size([1200, 800])
                 .words(words.map(function(d) {
                     var k = 1/(d.count+getRandomArbitrary(0,1));
-                    k = k*50;
+                    k = k*35 +10;
                     return {text: d.text, size: k};
                 }))
                 .padding(5)
